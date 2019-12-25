@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: App Ensei Information Prepare
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues:
+      - prod
+      - dev
+
+Resources:
+  #　S3バケット
+  InformationBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      AccessControl: PublicRead
+      BucketName: !Sub app-ensei-information-${Env}
+
+  # デプロイ用のIAMユーザ
+  DeployUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub app-ensei-information-deploy-user-${Env}
+ 
+  # デプロイ用のIAMユーザに付与するIAMポリシー（AssumeRoleできる）
+  DeployUserPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub app-ensei-information-deploy-policy-${Env}
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Resource: !GetAtt DeployRoleForUser.Arn
+      Users:
+        - !Ref DeployUser
+ 
+  # デプロイ用のIAMユーザがAssumeRoleするIAMロール（S3に対するWrite権限）
+  DeployRoleForUser:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub app-ensei-information-deploy-role-for-user-${Env}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              AWS:
+                - !GetAtt DeployUser.Arn
+            Condition:
+              StringEquals:
+                sts:ExternalId: any-id-hoge-fuga
+      Policies:
+        - PolicyName: !Sub app-ensei-information-deploy-policy-for-user-${Env}
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource:
+                  - !Sub ${InformationBucket.Arn}/information.json
+      MaxSessionDuration: 3600
