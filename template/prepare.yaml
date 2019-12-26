@@ -64,3 +64,7 @@ Resources:
                 Resource:
                   - !Sub ${InformationBucket.Arn}/information.json
       MaxSessionDuration: 3600
+
+Outputs:
+  DeployRoleForUserArn:
+    Value: !GetAtt DeployRoleForUser.Arn

@@ -7,6 +7,11 @@ prepare:
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameter-overrides Env=${ENV}
 
+describe-prepare:
+	aws cloudformation describe-stacks \
+		--stack-name $(BASE_STACK_NAME)-Prepare-${ENV} \
+		--query 'Stacks[].Outputs'
+
 test-json:
 	python -m pytest test/
 
