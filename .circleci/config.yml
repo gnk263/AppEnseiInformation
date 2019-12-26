@@ -82,7 +82,7 @@ jobs:
             fi
             export ROLE_SESSION_NAME=deploy-$ENV
 
-            ./aws-env.sh
+            ./assume_role.sh
             source aws-env.sh
  
             make deploy
