@@ -1,0 +1,151 @@
+version: 2.1
+executors:
+  my-executor:
+    docker:
+      - image: circleci/python:3.7.2
+        environment:
+          PIPENV_VENV_IN_PROJECT: true
+    working_directory: ~/work
+ 
+commands:
+  restore:
+    steps:
+      - restore_cache:
+          key: work-v1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+ 
+  save:
+    steps:
+      - save_cache:
+          paths:
+            - ".venv"
+          key: work-v1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+ 
+jobs:
+  setup:
+    executor: my-executor
+    steps:
+      - checkout
+      - restore
+      - run:
+          name: install
+          command: |
+            sudo pip install pipenv
+            pipenv install
+      - save
+ 
+  test:
+    executor: my-executor
+    parameters:
+      env:
+        type: enum
+        enum: ["prod", "dev"]
+    steps:
+      - checkout
+      - restore
+      - run:
+          name: test
+          command: |
+            source .venv/bin/activate
+            echo << parameters.env >> 
+            make test-json
+ 
+  deploy:
+    executor: my-executor
+    parameters:
+      env:
+        type: enum
+        enum: ["prod", "dev"]
+    steps:
+      - checkout
+      - restore
+      - run:
+          name: deploy
+          command: |
+            source .venv/bin/activate
+ 
+            aws --version
+ 
+            echo << parameters.env >>
+ 
+            if [ << parameters.env >> = "dev" ]; then
+              export ENV=<< parameters.env >>
+              export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_DEV
+              export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_DEV
+              export AWS_DEPLOY_IAM_ROLE_ARN=$AWS_DEPLOY_IAM_ROLE_ARN_DEV
+              export AWS_DEPLOY_IAM_ROLE_EXTERNAL_ID=$AWS_DEPLOY_IAM_ROLE_EXTERNAL_ID_DEV
+            else
+              export ENV=<< parameters.env >>
+              export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_PROD
+              export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_PROD
+              export AWS_DEPLOY_IAM_ROLE_ARN=$AWS_DEPLOY_IAM_ROLE_ARN_PROD
+              export AWS_DEPLOY_IAM_ROLE_EXTERNAL_ID=$AWS_DEPLOY_IAM_ROLE_EXTERNAL_ID_PROD
+            fi
+            export ROLE_SESSION_NAME=deploy-$ENV
+
+            ./aws-env.sh
+            source aws-env.sh
+ 
+            make deploy
+ 
+workflows:
+  version: 2.1
+  release-dev-workflow:
+    jobs:
+      - setup:
+          filters:
+            branches:
+              only:
+                - master
+                - /^issues\/\d+$/
+ 
+      - test:
+          env: dev
+          requires:
+            - setup
+          filters:
+            branches:
+              only:
+                - master
+                - /^issues\/\d+$/
+ 
+      - deploy:
+          env: dev
+          requires:
+            - test
+          filters:
+            branches:
+              only:
+                - master
+                - /^issues\/\d+$/
+ 
+  release-prod-workflow:
+    jobs:
+      - setup:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only:
+                - /^v\d+\.\d+\.\d+$/
+ 
+      - test:
+          env: prod
+          requires:
+            - setup
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only:
+                - /^v\d+\.\d+\.\d+$/
+ 
+      - deploy:
+          env: prod
+          requires:
+            - test
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only:
+                - /^v\d+\.\d+\.\d+$/
