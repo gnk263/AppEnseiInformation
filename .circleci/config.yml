@@ -20,37 +20,7 @@ commands:
             - ".venv"
           key: work-v1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
  
-jobs:
-  setup:
-    executor: my-executor
-    steps:
-      - checkout
-      - restore
-      - run:
-          name: install
-          command: |
-            sudo pip install pipenv
-            pipenv install
-      - save
- 
-  test:
-    executor: my-executor
-    parameters:
-      env:
-        type: enum
-        enum: ["prod", "dev"]
-    steps:
-      - checkout
-      - restore
-      - run:
-          name: test
-          command: |
-            source .venv/bin/activate
-            echo << parameters.env >> 
-            make test-json
- 
   deploy:
-    executor: my-executor
     parameters:
       env:
         type: enum
@@ -86,66 +56,82 @@ jobs:
             source aws-env.sh
  
             make deploy
+
+jobs:
+  setup:
+    executor: my-executor
+    steps:
+      - checkout
+      - restore
+      - run:
+          name: install
+          command: |
+            sudo pip install pipenv
+            pipenv install
+      - save
+ 
+  test:
+    executor: my-executor
+    steps:
+      - checkout
+      - restore
+      - run:
+          name: test
+          command: |
+            source .venv/bin/activate
+            make test-json
+ 
+  deploy_dev:
+    executor: my-executor
+    steps:
+      - checkout
+      - restore
+      - deploy:
+          env: dev
+ 
+  deploy_prod:
+    executor: my-executor
+    steps:
+      - checkout
+      - restore
+      - deploy:
+          env: prod
  
 workflows:
   version: 2.1
-  release-dev-workflow:
+  release-workflow:
     jobs:
       - setup:
           filters:
             branches:
               only:
                 - master
-                - /^issues\/\d+$/
- 
       - test:
-          env: dev
           requires:
             - setup
           filters:
             branches:
               only:
                 - master
-                - /^issues\/\d+$/
- 
-      - deploy:
-          env: dev
+      - deploy_dev:
           requires:
             - test
           filters:
             branches:
               only:
                 - master
-                - /^issues\/\d+$/
- 
-  release-prod-workflow:
-    jobs:
-      - setup:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only:
-                - /^v\d+\.\d+\.\d+$/
- 
-      - test:
-          env: prod
+      - approve_for_prod:
+          type: approval
           requires:
-            - setup
+            - deploy_dev
           filters:
             branches:
-              ignore: /.*/
-            tags:
               only:
-                - /^v\d+\.\d+\.\d+$/
- 
-      - deploy:
-          env: prod
+                - master
+      - deploy_prod:
           requires:
-            - test
+            - approve_for_prod
           filters:
             branches:
-              ignore: /.*/
-            tags:
               only:
-                - /^v\d+\.\d+\.\d+$/
+                - master
