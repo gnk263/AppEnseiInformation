@@ -61,6 +61,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:PutObject
+                  - s3:PutObjectAcl
                 Resource:
                   - !Sub ${InformationBucket.Arn}/information.json
       MaxSessionDuration: 3600
