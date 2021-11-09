@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
  
-set -xeuo pipefail
+set -euo pipefail
  
 aws_sts_credentials="$(aws sts assume-role \
   --role-arn "$AWS_DEPLOY_IAM_ROLE_ARN" \
