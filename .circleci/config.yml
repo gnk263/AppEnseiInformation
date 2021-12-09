@@ -80,6 +80,11 @@ jobs:
       - run:
           name: test
           command: |
+            python -m venv .venv
+            source .venv/bin/activate
+            sudo pip install pipenv
+            pipenv install
+
             source .venv/bin/activate
             make test-json
  
