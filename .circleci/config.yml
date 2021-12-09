@@ -11,14 +11,14 @@ commands:
   restore:
     steps:
       - restore_cache:
-          key: work-v1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: work-v2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
  
   save:
     steps:
       - save_cache:
           paths:
             - ".venv"
-          key: work-v1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: work-v2-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
  
   deploy:
     parameters:
