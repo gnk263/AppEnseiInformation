@@ -66,6 +66,8 @@ jobs:
       - run:
           name: install
           command: |
+            python -m venv .venv
+            source .venv/bin/activate
             sudo pip install pipenv
             pipenv install
       - save
